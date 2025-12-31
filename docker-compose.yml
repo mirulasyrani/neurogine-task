@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:16
+    container_name: neurogine-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-neurogine}
+      POSTGRES_USER: ${DB_USERNAME:-neurogine}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-neurogine}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  backend:
+    build:
+      context: ./backend
+    container_name: neurogine-backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-neurogine}
+      DB_USERNAME: ${DB_USERNAME:-neurogine}
+      DB_PASSWORD: ${DB_PASSWORD:-neurogine}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXP_SECONDS: ${JWT_EXP_SECONDS:-86400}
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    command: ["bash","-lc","./mvnw -q -DskipTests spring-boot:run"]
+volumes:
+  pgdata:

@@ -1,0 +1,11 @@
+# Root
+node_modules/
+.vscode/
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Env
+.env
