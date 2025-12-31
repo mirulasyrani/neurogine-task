@@ -15,10 +15,24 @@ public class Task {
     @Column(nullable = false)
     private String title;
 
+    @Column(length = 2000)
     private String description;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "PENDING";
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    private LocalDateTime dueDate;
+
+    @Column(length = 100)
+    private String category;
+
+    @Column(length = 500)
+    private String tags; // Comma-separated tags
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -33,5 +47,13 @@ public class Task {
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    public enum TaskStatus {
+        PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+    }
+
+    public enum TaskPriority {
+        LOW, MEDIUM, HIGH, URGENT
     }
 }

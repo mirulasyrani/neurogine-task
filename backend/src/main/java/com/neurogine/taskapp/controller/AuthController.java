@@ -7,15 +7,20 @@ import com.neurogine.taskapp.model.User;
 import com.neurogine.taskapp.repository.UserRepository;
 import com.neurogine.taskapp.security.JwtUtil;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,10 +37,14 @@ public class AuthController {
     
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        logger.info("Registration attempt for username: {}", request.getUsername());
+        
         if (userRepository.existsByUsername(request.getUsername())) {
+            logger.warn("Registration failed: Username already exists - {}", request.getUsername());
             return ResponseEntity.badRequest().body("Username already exists");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
+            logger.warn("Registration failed: Email already exists - {}", request.getEmail());
             return ResponseEntity.badRequest().body("Email already exists");
         }
         
@@ -45,20 +54,32 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
         
+        logger.info("User registered successfully: {}", request.getUsername());
+        
         String token = jwtUtil.generateToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponse(token, user.getUsername()));
     }
     
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        logger.info("Login attempt for username: {}", request.getUsername());
+        
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
             
+            User user = userRepository.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            user.setLastLoginAt(LocalDateTime.now());
+            userRepository.save(user);
+            
+            logger.info("User logged in successfully: {}", request.getUsername());
+            
             String token = jwtUtil.generateToken(request.getUsername());
             return ResponseEntity.ok(new AuthResponse(token, request.getUsername()));
         } catch (Exception e) {
+            logger.error("Login failed for username: {} - {}", request.getUsername(), e.getMessage());
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
     }

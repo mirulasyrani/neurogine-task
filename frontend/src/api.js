@@ -29,6 +29,31 @@ export const api = {
     return res.json();
   },
 
+  async searchTasks(token, params) {
+    const queryString = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_URL}/tasks/search?${queryString}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to search tasks');
+    return res.json();
+  },
+
+  async getStatistics(token) {
+    const res = await fetch(`${API_URL}/tasks/statistics`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch statistics');
+    return res.json();
+  },
+
+  async getCategories(token) {
+    const res = await fetch(`${API_URL}/tasks/categories`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch categories');
+    return res.json();
+  },
+
   async createTask(token, task) {
     const res = await fetch(`${API_URL}/tasks`, {
       method: 'POST',
@@ -61,5 +86,26 @@ export const api = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('Failed to delete task');
+  },
+
+  async getProfile(token) {
+    const res = await fetch(`${API_URL}/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch profile');
+    return res.json();
+  },
+
+  async updateProfile(token, profile) {
+    const res = await fetch(`${API_URL}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(profile)
+    });
+    if (!res.ok) throw new Error('Failed to update profile');
+    return res.json();
   }
 };
