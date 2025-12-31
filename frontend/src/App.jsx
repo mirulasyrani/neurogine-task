@@ -1,24 +1,31 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Tasks from './pages/Tasks'
 
-function Protected({ children }) {
-  const { token } = useAuth()
-  return token ? children : <Navigate to="/login" />
-}
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'))
 
-export default function App() {
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('token', token)
+    } else {
+      localStorage.removeItem('token')
+    }
+  }, [token])
+
+  const logout = () => setToken(null)
+
   return (
-    <AuthProvider>
-      <div className="min-h-screen">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/" element={<Protected><Tasks /></Protected>} />
-        </Routes>
-      </div>
-    </AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={token ? <Navigate to="/" /> : <Login setToken={setToken} />} />
+        <Route path="/register" element={token ? <Navigate to="/" /> : <Register setToken={setToken} />} />
+        <Route path="/" element={token ? <Tasks token={token} logout={logout} /> : <Navigate to="/login" />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
+
+export default App

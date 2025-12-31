@@ -1,14 +1,6 @@
-# Maven
-/target/
-/.mvn/
-.mvn/wrapper/maven-wrapper.jar
-
-# IDE
-/.idea/
-*.iml
-
-# Logs
-*.log
-
-# Env
-src/main/resources/application-local.yml
+target/
+.mvn/
+mvnw
+mvnw.cmd
+HELP.md
+.DS_Store
