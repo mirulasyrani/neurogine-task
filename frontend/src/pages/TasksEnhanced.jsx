@@ -1,38 +1,18 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { toast } from 'react-toastify';
-
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-const STATUSES = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-
-const PRIORITY_COLORS = {
-  LOW: 'bg-green-100 text-green-800',
-  MEDIUM: 'bg-yellow-100 text-yellow-800',
-  HIGH: 'bg-orange-100 text-orange-800',
-  URGENT: 'bg-red-100 text-red-800'
-};
-
-const STATUS_COLORS = {
-  PENDING: 'bg-gray-100 text-gray-800',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800'
-};
+import { useTaskForm } from '../hooks/useTaskForm';
+import TaskForm from '../components/TaskForm';
+import TaskFilters from '../components/TaskFilters';
+import TaskList from '../components/TaskList';
 
 export default function Tasks({ token }) {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  // Form state
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('MEDIUM');
-  const [status, setStatus] = useState('PENDING');
-  const [dueDate, setDueDate] = useState('');
-  const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
   const [editingId, setEditingId] = useState(null);
+  
+  const { formData, setters, fieldErrors, resetForm, loadTask, validateForm, clearFieldError } = useTaskForm();
   
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +23,7 @@ export default function Tasks({ token }) {
   useEffect(() => {
     loadTasks();
     loadCategories();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTasks = async () => {
@@ -96,18 +77,15 @@ export default function Tasks({ token }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const taskData = validateForm();
+    if (!taskData) {
+      toast.error('Please fix validation errors');
+      return;
+    }
+
     setLoading(true);
     
-    const taskData = {
-      title,
-      description,
-      priority,
-      status,
-      dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-      category: category || null,
-      tags: tags || null
-    };
-
     try {
       if (editingId) {
         await api.updateTask(token, editingId, taskData);
@@ -128,25 +106,8 @@ export default function Tasks({ token }) {
     }
   };
 
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setPriority('MEDIUM');
-    setStatus('PENDING');
-    setDueDate('');
-    setCategory('');
-    setTags('');
-    setEditingId(null);
-  };
-
   const handleEdit = (task) => {
-    setTitle(task.title);
-    setDescription(task.description || '');
-    setPriority(task.priority);
-    setStatus(task.status);
-    setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
-    setCategory(task.category || '');
-    setTags(task.tags || '');
+    loadTask(task);
     setEditingId(task.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -167,527 +128,88 @@ export default function Tasks({ token }) {
     }
   };
 
-  const isOverdue = (dueDate) => {
-    if (!dueDate) return false;
-    return new Date(dueDate) < new Date() && status !== 'COMPLETED';
+  const handleMarkComplete = async (id) => {
+    setLoading(true);
+    try {
+      await api.markTaskComplete(token, id);
+      toast.success('Task marked as complete! 🎉');
+      loadTasks();
+    } catch (error) {
+      toast.error('Failed to mark task as complete');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleCancel = () => {
+    resetForm();
+    setEditingId(null);
+  };
+
+  // Separate active and completed tasks
+  const activeTasks = tasks.filter(task => task.status !== 'COMPLETED');
+  const completedTasks = tasks.filter(task => task.status === 'COMPLETED');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Task Form */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-2xl font-bold mb-6 dark:text-white">{editingId ? 'Edit Task' : 'Create New Task'}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Title *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Category</label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                list="categories"
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="e.g., Work, Personal"
-              />
-              <datalist id="categories">
-                {categories.map(cat => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+      <TaskForm
+        formData={formData}
+        setters={setters}
+        fieldErrors={fieldErrors}
+        clearFieldError={clearFieldError}
+        categories={categories}
+        loading={loading}
+        editingId={editingId}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+      />
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2 dark:text-gray-300">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              rows="3"
+      <TaskFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        filterPriority={filterPriority}
+        setFilterPriority={setFilterPriority}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        categories={categories}
+        onSearch={handleSearch}
+        onReset={resetFilters}
+      />
+
+      {/* Active Tasks Section */}
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold mb-4 dark:text-white">
+          Active Tasks ({activeTasks.length})
+        </h3>
+        <TaskList
+          tasks={activeTasks}
+          loading={loading}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onMarkComplete={handleMarkComplete}
+        />
+      </div>
+
+      {/* Completed Tasks Section */}
+      {completedTasks.length > 0 && (
+        <div className="mt-8 border-t-2 border-gray-300 dark:border-gray-700 pt-8">
+          <h3 className="text-2xl font-bold mb-4 text-green-600 dark:text-green-400">
+            ✓ Completed Tasks ({completedTasks.length})
+          </h3>
+          <div className="opacity-75">
+            <TaskList
+              tasks={completedTasks}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onMarkComplete={handleMarkComplete}
             />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                {PRIORITIES.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                {STATUSES.map(s => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">Tags</label>
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="w-full px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="tag1, tag2"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : editingId ? 'Update Task' : 'Create Task'}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-xl font-bold mb-4 dark:text-white">Search & Filter</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tasks..."
-            className="px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">All Statuses</option>
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-            className="px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">All Priorities</option>
-            {PRIORITIES.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSearch}
-              className="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Search
-            </button>
-            <button
-              onClick={resetFilters}
-              className="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              Reset
-            </button>
-          </div>
         </div>
-      </div>
-
-      {/* Tasks List */}
-      <div>
-        <h3 className="text-2xl font-bold mb-4 dark:text-white">Tasks ({tasks.length})</h3>
-        
-        {loading && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          </div>
-        )}
-
-        {!loading && tasks.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center text-gray-500 dark:text-gray-400">
-            No tasks found. Create your first task above!
-          </div>
-        )}
-
-        <div className="grid gap-4">
-          {tasks.map(task => (
-            <div
-              key={task.id}
-              className={`bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow ${
-                isOverdue(task.dueDate) ? 'border-l-4 border-red-500' : ''
-              }`}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h4 className="text-xl font-semibold mb-2 dark:text-white">{task.title}</h4>
-                  {task.description && (
-                    <p className="text-gray-600 dark:text-gray-400 mb-3">{task.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(task)}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(task.id)}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[task.status]}`}>
-                  {task.status.replace('_', ' ')}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${PRIORITY_COLORS[task.priority]}`}>
-                  {task.priority}
-                </span>
-                {task.category && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                    {task.category}
-                  </span>
-                )}
-                {task.dueDate && (
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    isOverdue(task.dueDate) ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                  }`}>
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-
-              {task.tags && (
-                <div className="flex flex-wrap gap-1">
-                  {task.tags.split(',').map((tag, i) => (
-                    <span key={i} className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
-                      #{tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Title *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                list="categories"
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Work, Personal"
-              />
-              <datalist id="categories">
-                {categories.map(cat => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="3"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {PRIORITIES.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {STATUSES.map(s => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Tags</label>
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="tag1, tag2"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : editingId ? 'Update Task' : 'Create Task'}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-xl font-bold mb-4">Search & Filter</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tasks..."
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Statuses</option>
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Priorities</option>
-            {PRIORITIES.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSearch}
-              className="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Search
-            </button>
-            <button
-              onClick={resetFilters}
-              className="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Tasks List */}
-      <div>
-        <h3 className="text-2xl font-bold mb-4">Tasks ({tasks.length})</h3>
-        
-        {loading && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          </div>
-        )}
-
-        {!loading && tasks.length === 0 && (
-          <div className="bg-white p-8 rounded-lg shadow-md text-center text-gray-500">
-            No tasks found. Create your first task above!
-          </div>
-        )}
-
-        <div className="grid gap-4">
-          {tasks.map(task => (
-            <div
-              key={task.id}
-              className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow ${
-                isOverdue(task.dueDate) ? 'border-l-4 border-red-500' : ''
-              }`}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h4 className="text-xl font-semibold mb-2">{task.title}</h4>
-                  {task.description && (
-                    <p className="text-gray-600 mb-3">{task.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(task)}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(task.id)}
-                    className="text-red-600 hover:text-red-800 font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[task.status]}`}>
-                  {task.status.replace('_', ' ')}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${PRIORITY_COLORS[task.priority]}`}>
-                  {task.priority}
-                </span>
-                {task.category && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
-                    {task.category}
-                  </span>
-                )}
-                {task.dueDate && (
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    isOverdue(task.dueDate) ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-
-              {task.tags && (
-                <div className="flex flex-wrap gap-1">
-                  {task.tags.split(',').map((tag, i) => (
-                    <span key={i} className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
-                      #{tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,69 @@
-# Root
+# Dependencies
 node_modules/
+frontend/node_modules/
+
+# Build outputs
+backend/target/
+frontend/dist/
+frontend/build/
+
+# IDE & Editor files
 .vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
+Thumbs.db
 
 # Logs
 logs/
 *.log
+backend/logs/
+backend/*.log
+frontend/*.log
 
-# Env
+# Environment files
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Application configuration with secrets
+backend/src/main/resources/application.yml
+backend/src/main/resources/application.properties
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+*.backup
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Maven
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# Spring Boot
+backend/HELP.md
+
+# NPM/Yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json.bak
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

@@ -69,6 +69,8 @@ public class TaskController {
             return ResponseEntity.status(403).build();
         }
         
+        Task.TaskStatus oldStatus = task.getStatus();
+        
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -76,6 +78,33 @@ public class TaskController {
         task.setDueDate(request.getDueDate());
         task.setCategory(request.getCategory());
         task.setTags(request.getTags());
+        
+        // Log when task is marked as completed
+        if (oldStatus != Task.TaskStatus.COMPLETED && request.getStatus() == Task.TaskStatus.COMPLETED) {
+            logger.info("Task #{} '{}' marked as COMPLETED by user '{}'", 
+                task.getId(), task.getTitle(), user.getUsername());
+        }
+        
+        return ResponseEntity.ok(taskRepository.save(task));
+    }
+    
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<Task> markTaskComplete(@PathVariable Long id, Authentication auth) {
+        User user = userRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        
+        if (!task.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.status(403).build();
+        }
+        
+        if (task.getStatus() != Task.TaskStatus.COMPLETED) {
+            task.setStatus(Task.TaskStatus.COMPLETED);
+            logger.info("Task #{} '{}' marked as COMPLETED by user '{}' at {}", 
+                task.getId(), task.getTitle(), user.getUsername(), LocalDateTime.now());
+        }
         
         return ResponseEntity.ok(taskRepository.save(task));
     }

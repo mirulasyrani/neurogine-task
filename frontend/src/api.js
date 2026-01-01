@@ -80,6 +80,17 @@ export const api = {
     return res.json();
   },
 
+  async markTaskComplete(token, id) {
+    const res = await fetch(`${API_URL}/tasks/${id}/complete`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!res.ok) throw new Error('Failed to mark task as complete');
+    return res.json();
+  },
+
   async deleteTask(token, id) {
     const res = await fetch(`${API_URL}/tasks/${id}`, {
       method: 'DELETE',

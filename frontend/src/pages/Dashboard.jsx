@@ -60,10 +60,15 @@ export default function Dashboard() {
       <h1 className="text-3xl font-bold mb-8 dark:text-white">Dashboard</h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Tasks</div>
           <div className="text-3xl font-bold mt-2 dark:text-white">{stats.totalTasks}</div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Completed</div>
+          <div className="text-3xl font-bold mt-2 text-green-600 dark:text-green-400">{stats.completedTasksCount || 0}</div>
         </div>
         
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -78,7 +83,7 @@ export default function Dashboard() {
         
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">This Week</div>
-          <div className="text-3xl font-bold mt-2 text-green-600 dark:text-green-400">{stats.weekTasksCount}</div>
+          <div className="text-3xl font-bold mt-2 text-purple-600 dark:text-purple-400">{stats.weekTasksCount}</div>
         </div>
       </div>
 
@@ -94,7 +99,7 @@ export default function Dashboard() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent, value }) => value > 0 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"

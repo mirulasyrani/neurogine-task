@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: taskapp
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskdb
+    username: YOUR_DB_USERNAME
+    password: YOUR_DB_PASSWORD
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: YOUR_JWT_SECRET_KEY_AT_LEAST_256_BITS_LONG
+  expiration: 86400000  # 24 hours in milliseconds
